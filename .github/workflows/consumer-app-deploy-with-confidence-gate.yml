@@ -1,0 +1,228 @@
+name: Consumer App Deploy With Deployment Confidence Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  DEPLOY_CONFIDENCE_URL: http://deploy-confidence-service.deploy-confidence.svc.cluster.local:8000
+
+jobs:
+  pre-deploy-gate:
+    name: Pre-deploy confidence gate
+    runs-on: ubuntu-latest
+
+    outputs:
+      environment_threshold: ${{ steps.policy.outputs.environment_threshold }}
+      score: ${{ steps.score.outputs.score }}
+      status: ${{ steps.score.outputs.status }}
+      deploy_allowed: ${{ steps.score.outputs.deploy_allowed }}
+
+    steps:
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Set policy by environment
+        id: policy
+        run: |
+          case "${{ github.event.inputs.environment }}" in
+            dev)
+              echo "environment_threshold=60" >> $GITHUB_OUTPUT
+              echo "block_on_caution=false" >> $GITHUB_OUTPUT
+              ;;
+            staging)
+              echo "environment_threshold=75" >> $GITHUB_OUTPUT
+              echo "block_on_caution=false" >> $GITHUB_OUTPUT
+              ;;
+            prod)
+              echo "environment_threshold=85" >> $GITHUB_OUTPUT
+              echo "block_on_caution=true" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "Unknown environment"
+              exit 1
+              ;;
+          esac
+
+      - name: Verify readiness endpoint
+        run: |
+          echo "Checking /ready endpoint..."
+          curl --fail -s ${DEPLOY_CONFIDENCE_URL}/ready | tee ready.json
+
+      - name: Verify health endpoint
+        id: health
+        run: |
+          echo "Checking /health endpoint..."
+          HEALTH_RESPONSE=$(curl --fail -s ${DEPLOY_CONFIDENCE_URL}/health)
+
+          echo "$HEALTH_RESPONSE" | jq .
+          echo "$HEALTH_RESPONSE" > health.json
+
+          HEALTH_STATUS=$(echo "$HEALTH_RESPONSE" | jq -r '.status')
+          SCORE_FRESH=$(echo "$HEALTH_RESPONSE" | jq -r '.score_fresh')
+          LAST_ERROR=$(echo "$HEALTH_RESPONSE" | jq -r '.last_error')
+
+          echo "health_status=$HEALTH_STATUS" >> $GITHUB_OUTPUT
+          echo "score_fresh=$SCORE_FRESH" >> $GITHUB_OUTPUT
+          echo "last_error=$LAST_ERROR" >> $GITHUB_OUTPUT
+
+          if [ "$HEALTH_STATUS" != "ok" ]; then
+            echo "Deploy-confidence-service health is not ok: $HEALTH_STATUS"
+            exit 1
+          fi
+
+          if [ "$SCORE_FRESH" != "true" ]; then
+            echo "Deploy-confidence score is stale."
+            exit 1
+          fi
+
+      - name: Query score endpoint
+        id: score
+        run: |
+          echo "Querying /score endpoint..."
+          SCORE_RESPONSE=$(curl --fail -s ${DEPLOY_CONFIDENCE_URL}/score)
+
+          echo "$SCORE_RESPONSE" | jq .
+          echo "$SCORE_RESPONSE" > score.json
+
+          SCORE=$(echo "$SCORE_RESPONSE" | jq -r '.score')
+          STATUS=$(echo "$SCORE_RESPONSE" | jq -r '.status')
+          DEPLOY_ALLOWED=$(echo "$SCORE_RESPONSE" | jq -r '.deploy_allowed')
+          SUMMARY=$(echo "$SCORE_RESPONSE" | jq -r '.summary')
+
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "deploy_allowed=$DEPLOY_ALLOWED" >> $GITHUB_OUTPUT
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+
+      - name: Query details endpoint
+        id: details
+        run: |
+          echo "Querying /details endpoint..."
+          DETAILS_RESPONSE=$(curl --fail -s ${DEPLOY_CONFIDENCE_URL}/details)
+
+          echo "$DETAILS_RESPONSE" | jq .
+          echo "$DETAILS_RESPONSE" > details.json
+
+          TOP_RISKS=$(echo "$DETAILS_RESPONSE" | jq -r '
+            .components
+            | sort_by(.score)
+            | .[:3]
+            | map("\(.name)=\(.score) -> \(.reason)")
+            | join(" | ")
+          ')
+
+          echo "top_risks=$TOP_RISKS" >> $GITHUB_OUTPUT
+
+      - name: Write gate summary
+        if: always()
+        run: |
+          {
+            echo "## Deployment Confidence Gate"
+            echo ""
+            echo "- **Environment:** ${{ github.event.inputs.environment }}"
+            echo "- **Threshold:** ${{ steps.policy.outputs.environment_threshold }}"
+            echo "- **Health status:** ${{ steps.health.outputs.health_status }}"
+            echo "- **Score fresh:** ${{ steps.health.outputs.score_fresh }}"
+            echo "- **Score:** ${{ steps.score.outputs.score }}"
+            echo "- **Status:** ${{ steps.score.outputs.status }}"
+            echo "- **Deploy allowed:** ${{ steps.score.outputs.deploy_allowed }}"
+            echo "- **Summary:** ${{ steps.score.outputs.summary }}"
+            echo "- **Top risks:** ${{ steps.details.outputs.top_risks }}"
+            echo "- **Last error:** ${{ steps.health.outputs.last_error }}"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Enforce deployment policy
+        run: |
+          SCORE="${{ steps.score.outputs.score }}"
+          STATUS="${{ steps.score.outputs.status }}"
+          DEPLOY_ALLOWED="${{ steps.score.outputs.deploy_allowed }}"
+          THRESHOLD="${{ steps.policy.outputs.environment_threshold }}"
+          BLOCK_ON_CAUTION="${{ steps.policy.outputs.block_on_caution }}"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+
+          echo "Evaluating deployment policy..."
+          echo "Environment: $ENVIRONMENT"
+          echo "Threshold: $THRESHOLD"
+          echo "Score: $SCORE"
+          echo "Status: $STATUS"
+          echo "Deploy allowed flag: $DEPLOY_ALLOWED"
+          echo "Top risks: ${{ steps.details.outputs.top_risks }}"
+
+          if [ "$DEPLOY_ALLOWED" != "true" ]; then
+            echo "Service indicates deployment is not allowed."
+            exit 1
+          fi
+
+          awk -v score="$SCORE" -v threshold="$THRESHOLD" 'BEGIN {
+            if (score + 0 < threshold + 0) {
+              exit 1
+            }
+            exit 0
+          }' || {
+            echo "Score is below threshold."
+            exit 1
+          }
+
+          if [ "$ENVIRONMENT" = "prod" ] && [ "$BLOCK_ON_CAUTION" = "true" ] && [ "$STATUS" = "CAUTION" ]; then
+            echo "Production policy blocks deployments in CAUTION state."
+            exit 1
+          fi
+
+          if [ "$STATUS" = "HOLD" ]; then
+            echo "Deployment status is HOLD. Blocking deployment."
+            exit 1
+          fi
+
+          echo "Confidence gate passed."
+
+      - name: Upload gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-confidence-gate-evidence-${{ github.run_id }}
+          path: |
+            ready.json
+            health.json
+            score.json
+            details.json
+
+  deploy-app:
+    name: Deploy consumer application
+    runs-on: ubuntu-latest
+    needs: pre-deploy-gate
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show approved gate decision
+        run: |
+          {
+            echo "## Consumer Deployment Approved"
+            echo ""
+            echo "- **Environment:** ${{ github.event.inputs.environment }}"
+            echo "- **Threshold:** ${{ needs.pre-deploy-gate.outputs.environment_threshold }}"
+            echo "- **Score:** ${{ needs.pre-deploy-gate.outputs.score }}"
+            echo "- **Status:** ${{ needs.pre-deploy-gate.outputs.status }}"
+            echo "- **Deploy allowed:** ${{ needs.pre-deploy-gate.outputs.deploy_allowed }}"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Deploy application
+        run: |
+          echo "Deploying consumer application to ${{ github.event.inputs.environment }}"
+          echo "Replace this with your real deployment command."
+          echo "Examples:"
+          echo "  kubectl apply -f k8s/"
+          echo "  helm upgrade --install ..."
+          echo "  argocd app sync ..."

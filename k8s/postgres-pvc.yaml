@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: deploy-confidence-postgres-pvc
+  namespace: deploy-confidence
+spec:
+  storageClassName: longhorn-single-replica
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

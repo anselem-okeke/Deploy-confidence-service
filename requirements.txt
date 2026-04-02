@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+psycopg[binary]
+alembic
+apscheduler
+httpx
+prometheus-api-client
+kubernetes
+python-dotenv
+pytest
+requests

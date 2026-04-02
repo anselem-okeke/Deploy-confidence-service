@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: deploy-confidence-postgres
+  namespace: deploy-confidence
+spec:
+  selector:
+    app: deploy-confidence-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
+

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: deploy-confidence-service
+  namespace: deploy-confidence
+spec:
+  selector:
+    app: deploy-confidence-service
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
