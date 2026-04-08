@@ -18,3 +18,4 @@ data:
   DEPLOY_THRESHOLD: "70"
 
   KUBERNETES_IN_CLUSTER: "true"
+

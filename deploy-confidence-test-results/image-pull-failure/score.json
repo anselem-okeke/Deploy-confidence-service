@@ -1,0 +1,8 @@
+{
+  "score": 86.25,
+  "status": "DEPLOY",
+  "deploy_allowed": true,
+  "threshold": 70,
+  "summary": "image pull health and node headroom are the main factors affecting deployment confidence.",
+  "updated_at": "2026-04-08T18:56:48.426988Z"
+}

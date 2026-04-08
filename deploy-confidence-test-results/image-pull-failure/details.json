@@ -1,0 +1,60 @@
+{
+  "score": 86.25,
+  "status": "DEPLOY",
+  "deploy_allowed": true,
+  "threshold": 70,
+  "summary": "image pull health and node headroom are the main factors affecting deployment confidence.",
+  "updated_at": "2026-04-08T18:56:48.426988Z",
+  "components": [
+    {
+      "name": "node_headroom",
+      "score": 100.0,
+      "weight": 0.25,
+      "reason": "Workers have strong CPU and memory headroom.",
+      "raw": {
+        "max_worker_cpu_pct": 0.0,
+        "max_worker_mem_pct": 0.0
+      }
+    },
+    {
+      "name": "restart_pressure",
+      "score": 100.0,
+      "weight": 0.2,
+      "reason": "Restart pressure is low across monitored workloads.",
+      "raw": {
+        "recent_restarts_15m": 0
+      }
+    },
+    {
+      "name": "image_pull_health",
+      "score": 45.0,
+      "weight": 0.25,
+      "reason": "Recent image pull failures reduced rollout confidence.",
+      "raw": {
+        "pull_failures_15m": 2,
+        "affected_registries": [
+          "docker.io"
+        ]
+      }
+    },
+    {
+      "name": "startup_latency",
+      "score": 100.0,
+      "weight": 0.15,
+      "reason": "Pod startup latency is healthy.",
+      "raw": {
+        "p95_startup_seconds": 0.0
+      }
+    },
+    {
+      "name": "dependency_health",
+      "score": 100.0,
+      "weight": 0.15,
+      "reason": "Critical deployment dependencies are currently reachable.",
+      "raw": {
+        "dns_ok": true,
+        "registry_ok": true
+      }
+    }
+  ]
+}

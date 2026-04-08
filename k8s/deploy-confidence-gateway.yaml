@@ -1,0 +1,28 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: deploy-confidence-gateway
+  namespace: deploy-confidence
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: deploy-confidence.lab.local
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: deploy-confidence.lab.local
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: deploy-confidence-lan-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+

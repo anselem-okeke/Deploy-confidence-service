@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: baseline-ok
+  namespace: deploy-confidence-tests
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: baseline-ok
+  template:
+    metadata:
+      labels:
+        app: baseline-ok
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25
+          ports:
+            - containerPort: 80

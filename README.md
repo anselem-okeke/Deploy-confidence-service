@@ -2787,9 +2787,7 @@ That is why both the API and the dashboard should ultimately be backed by the sa
 
 ## Dashboard screenshots
 
-Include screenshots of the dashboard in this section of the README.
-
-Recommended screenshots include:
+Screenshots included:
 
 - current deployment decision row
 - confidence trend row

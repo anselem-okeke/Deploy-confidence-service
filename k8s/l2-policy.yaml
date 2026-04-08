@@ -1,0 +1,12 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: lan-l2-policy
+spec:
+  serviceSelector:
+    matchLabels:
+      io.cilium.gateway/owning-gateway: deploy-confidence-gateway
+  interfaces:
+    - ens18
+  externalIPs: true
+  loadBalancerIPs: true
