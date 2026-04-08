@@ -61,20 +61,79 @@ class KubernetesCollector:
             raise KubernetesCollectorError(f"Failed to list Kubernetes pods: {exc}") from exc
 
     def collect_image_pull_health(self, window_minutes: int = 15) -> dict[str, Any]:
+        """
+        Backward-compatible image pull health collector.
+
+        Keeps the existing component contract (`image_pull_health`) but fixes the logic by:
+        - using active pod/container waiting state as primary truth
+        - using recent Kubernetes events as supporting evidence
+        """
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+
+        pods = []
         events = []
 
         if self.namespaces:
             for namespace in self.namespaces:
+                pods.extend(self._list_pods(namespace=namespace))
                 events.extend(self._list_events(namespace=namespace))
         else:
+            pods = self._list_pods()
             events = self._list_events()
 
-        pull_failures = 0
-        affected_registries: set[str] = set()
+        active_failure_reasons = {"ErrImagePull", "ImagePullBackOff", "InvalidImageName"}
 
+        active_pull_failures = 0
+        recent_pull_failure_events = 0
+        affected_registries: set[str] = set()
+        affected_pods: set[str] = set()
+
+        def extract_registry(image: str) -> str:
+            if not image:
+                return "unknown"
+            return image.split("/")[0] if "/" in image else "docker.io"
+
+        # Primary truth: active pod/container waiting state
+        for pod in pods:
+            metadata = getattr(pod, "metadata", None)
+            status = getattr(pod, "status", None)
+
+            if metadata is None or status is None:
+                continue
+
+            namespace = getattr(metadata, "namespace", "unknown")
+            pod_name = getattr(metadata, "name", "unknown")
+
+            container_statuses = getattr(status, "container_statuses", None) or []
+            init_container_statuses = getattr(status, "init_container_statuses", None) or []
+            all_statuses = list(init_container_statuses) + list(container_statuses)
+
+            pod_has_active_failure = False
+
+            for container_status in all_statuses:
+                state = getattr(container_status, "state", None)
+                waiting = getattr(state, "waiting", None) if state else None
+                if waiting is None:
+                    continue
+
+                reason = getattr(waiting, "reason", "") or ""
+                image = getattr(container_status, "image", "") or ""
+
+                if reason in active_failure_reasons:
+                    pod_has_active_failure = True
+                    affected_registries.add(extract_registry(image))
+
+            if pod_has_active_failure:
+                active_pull_failures += 1
+                affected_pods.add(f"{namespace}/{pod_name}")
+
+        # Supporting evidence: recent events
         for event in events:
-            event_time = getattr(event, "last_timestamp", None) or getattr(event, "event_time", None)
+            event_time = (
+                    getattr(event, "last_timestamp", None)
+                    or getattr(event, "event_time", None)
+                    or getattr(event, "first_timestamp", None)
+            )
             if event_time is None:
                 continue
 
@@ -88,31 +147,102 @@ class KubernetesCollector:
             message = getattr(event, "message", "") or ""
 
             if (
-                "ErrImagePull" in reason
-                or "ImagePullBackOff" in reason
-                or "Failed to pull image" in message
-                or "Error: ErrImagePull" in message
+                    "ErrImagePull" in message
+                    or "ImagePullBackOff" in message
+                    or "Failed to pull image" in message
+                    or "Back-off pulling image" in message
+                    or "Error: ErrImagePull" in message
+                    or (reason == "BackOff" and "pull" in message.lower())
+                    or (reason == "Failed" and "image" in message.lower())
             ):
-                pull_failures += 1
+                recent_pull_failure_events += 1
+
+                involved_object = getattr(event, "involved_object", None)
+                namespace = getattr(involved_object, "namespace", "unknown") if involved_object else "unknown"
+                pod_name = getattr(involved_object, "name", "unknown") if involved_object else "unknown"
+
+                if pod_name != "unknown":
+                    affected_pods.add(f"{namespace}/{pod_name}")
 
                 match = re.search(r'image "([^"]+)"', message)
                 if match:
                     image = match.group(1)
-                    registry = image.split("/")[0] if "/" in image else "docker.io"
-                    affected_registries.add(registry)
+                    affected_registries.add(extract_registry(image))
 
+        # Backward compatibility:
+        # keep pull_failures_15m for existing scorer/raw payload expectations
         result = {
-            "pull_failures_15m": pull_failures,
+            "pull_failures_15m": recent_pull_failure_events,
+            "active_pull_failures": active_pull_failures,
+            "recent_pull_failure_events": recent_pull_failure_events,
+            "affected_pods": sorted(affected_pods),
             "affected_registries": sorted(affected_registries),
+            "window_minutes": window_minutes,
         }
 
         logger.info(
-            "Collected image pull health pull_failures_15m=%d affected_registries=%s",
-            result["pull_failures_15m"],
+            "Collected image pull health active_pull_failures=%d recent_pull_failure_events=%d affected_pods=%s affected_registries=%s",
+            result["active_pull_failures"],
+            result["recent_pull_failure_events"],
+            result["affected_pods"],
             result["affected_registries"],
         )
 
         return result
+
+    # def collect_image_pull_health(self, window_minutes: int = 15) -> dict[str, Any]:
+    #     cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    #     events = []
+    #
+    #     if self.namespaces:
+    #         for namespace in self.namespaces:
+    #             events.extend(self._list_events(namespace=namespace))
+    #     else:
+    #         events = self._list_events()
+    #
+    #     pull_failures = 0
+    #     affected_registries: set[str] = set()
+    #
+    #     for event in events:
+    #         event_time = getattr(event, "last_timestamp", None) or getattr(event, "event_time", None)
+    #         if event_time is None:
+    #             continue
+    #
+    #         if event_time.tzinfo is None:
+    #             event_time = event_time.replace(tzinfo=timezone.utc)
+    #
+    #         if event_time < cutoff:
+    #             continue
+    #
+    #         reason = getattr(event, "reason", "") or ""
+    #         message = getattr(event, "message", "") or ""
+    #
+    #         if (
+    #             "ErrImagePull" in reason
+    #             or "ImagePullBackOff" in reason
+    #             or "Failed to pull image" in message
+    #             or "Error: ErrImagePull" in message
+    #         ):
+    #             pull_failures += 1
+    #
+    #             match = re.search(r'image "([^"]+)"', message)
+    #             if match:
+    #                 image = match.group(1)
+    #                 registry = image.split("/")[0] if "/" in image else "docker.io"
+    #                 affected_registries.add(registry)
+    #
+    #     result = {
+    #         "pull_failures_15m": pull_failures,
+    #         "affected_registries": sorted(affected_registries),
+    #     }
+    #
+    #     logger.info(
+    #         "Collected image pull health pull_failures_15m=%d affected_registries=%s",
+    #         result["pull_failures_15m"],
+    #         result["affected_registries"],
+    #     )
+    #
+    #     return result
 
     def collect_startup_latency(self, window_minutes: int = 30) -> dict[str, Any]:
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)

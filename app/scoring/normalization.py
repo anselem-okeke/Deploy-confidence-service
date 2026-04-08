@@ -49,32 +49,79 @@ def score_restart_pressure(*, recent_restarts_15m: int) -> tuple[float, str, dic
     }
     return score, reason, raw
 
-
 def score_image_pull_health(
     *,
     pull_failures_15m: int,
+    active_pull_failures: int = 0,
+    recent_pull_failure_events: int | None = None,
+    affected_pods: list[str] | None = None,
     affected_registries: list[str] | None = None,
+    window_minutes: int = 15,
 ) -> tuple[float, str, dict]:
+    affected_pods = affected_pods or []
     affected_registries = affected_registries or []
+    recent_pull_failure_events = (
+        pull_failures_15m if recent_pull_failure_events is None else recent_pull_failure_events
+    )
 
-    if pull_failures_15m == 0:
+    # Active blocker takes priority
+    if active_pull_failures > 0:
+        if active_pull_failures == 1:
+            score = 0.0
+            reason = "Active image pull failure is currently blocking rollout confidence."
+        else:
+            score = 0.0
+            reason = "Multiple active image pull failures are currently blocking rollout confidence."
+
+    # Recent instability is softer than active failure
+    elif recent_pull_failure_events == 0:
         score = 100.0
-        reason = "No recent image pull failures detected."
-    elif pull_failures_15m == 1:
+        reason = "No active or recent image pull failures detected."
+    elif recent_pull_failure_events == 1:
         score = 75.0
         reason = "A recent image pull failure slightly reduced rollout confidence."
-    elif pull_failures_15m <= 3:
+    elif recent_pull_failure_events <= 3:
         score = 45.0
         reason = "Recent image pull failures reduced rollout confidence."
     else:
         score = 15.0
-        reason = "Repeated image pull failures present a major rollout risk."
+        reason = "Repeated recent image pull failures indicate major rollout risk."
 
     raw = {
         "pull_failures_15m": pull_failures_15m,
+        "active_pull_failures": active_pull_failures,
+        "recent_pull_failure_events": recent_pull_failure_events,
+        "affected_pods": affected_pods,
         "affected_registries": affected_registries,
+        "window_minutes": window_minutes,
     }
     return score, reason, raw
+
+# def score_image_pull_health(
+#     *,
+#     pull_failures_15m: int,
+#     affected_registries: list[str] | None = None,
+# ) -> tuple[float, str, dict]:
+#     affected_registries = affected_registries or []
+#
+#     if pull_failures_15m == 0:
+#         score = 100.0
+#         reason = "No recent image pull failures detected."
+#     elif pull_failures_15m == 1:
+#         score = 75.0
+#         reason = "A recent image pull failure slightly reduced rollout confidence."
+#     elif pull_failures_15m <= 3:
+#         score = 45.0
+#         reason = "Recent image pull failures reduced rollout confidence."
+#     else:
+#         score = 15.0
+#         reason = "Repeated image pull failures present a major rollout risk."
+#
+#     raw = {
+#         "pull_failures_15m": pull_failures_15m,
+#         "affected_registries": affected_registries,
+#     }
+#     return score, reason, raw
 
 
 def score_startup_latency(*, p95_startup_seconds: float) -> tuple[float, str, dict]:
