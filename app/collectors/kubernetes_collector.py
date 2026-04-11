@@ -264,20 +264,33 @@ class KubernetesCollector:
                 continue
 
             created_at = getattr(metadata, "creation_timestamp", None)
-            started_at = getattr(status, "start_time", None)
-
-            if created_at is None or started_at is None:
+            if created_at is None:
                 continue
 
             if created_at.tzinfo is None:
                 created_at = created_at.replace(tzinfo=timezone.utc)
-            if started_at.tzinfo is None:
-                started_at = started_at.replace(tzinfo=timezone.utc)
 
             if created_at < cutoff:
                 continue
 
-            duration_seconds = (started_at - created_at).total_seconds()
+            ready_at = None
+            conditions = getattr(status, "conditions", None) or []
+
+            for condition in conditions:
+                condition_type = getattr(condition, "type", None)
+                condition_status = getattr(condition, "status", None)
+
+                if condition_type == "Ready" and condition_status == "True":
+                    ready_at = getattr(condition, "last_transition_time", None)
+                    break
+
+            if ready_at is None:
+                continue
+
+            if ready_at.tzinfo is None:
+                ready_at = ready_at.replace(tzinfo=timezone.utc)
+
+            duration_seconds = (ready_at - created_at).total_seconds()
             if duration_seconds < 0:
                 continue
 
@@ -300,6 +313,63 @@ class KubernetesCollector:
         )
 
         return result
+
+    # def collect_startup_latency(self, window_minutes: int = 30) -> dict[str, Any]:
+    #     cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    #     pods = []
+    #
+    #     if self.namespaces:
+    #         for namespace in self.namespaces:
+    #             pods.extend(self._list_pods(namespace=namespace))
+    #     else:
+    #         pods = self._list_pods()
+    #
+    #     startup_durations: list[float] = []
+    #
+    #     for pod in pods:
+    #         metadata = getattr(pod, "metadata", None)
+    #         status = getattr(pod, "status", None)
+    #
+    #         if metadata is None or status is None:
+    #             continue
+    #
+    #         created_at = getattr(metadata, "creation_timestamp", None)
+    #         started_at = getattr(status, "start_time", None)
+    #
+    #         if created_at is None or started_at is None:
+    #             continue
+    #
+    #         if created_at.tzinfo is None:
+    #             created_at = created_at.replace(tzinfo=timezone.utc)
+    #         if started_at.tzinfo is None:
+    #             started_at = started_at.replace(tzinfo=timezone.utc)
+    #
+    #         if created_at < cutoff:
+    #             continue
+    #
+    #         duration_seconds = (started_at - created_at).total_seconds()
+    #         if duration_seconds < 0:
+    #             continue
+    #
+    #         startup_durations.append(duration_seconds)
+    #
+    #     if not startup_durations:
+    #         p95 = 0.0
+    #     elif len(startup_durations) == 1:
+    #         p95 = float(startup_durations[0])
+    #     else:
+    #         p95 = float(quantiles(startup_durations, n=100, method="inclusive")[94])
+    #
+    #     result = {
+    #         "p95_startup_seconds": round(p95, 2),
+    #     }
+    #
+    #     logger.info(
+    #         "Collected startup latency p95_startup_seconds=%.2f",
+    #         result["p95_startup_seconds"],
+    #     )
+    #
+    #     return result
 
     def collect_kubernetes_inputs(self) -> dict[str, dict[str, Any]]:
         return {
