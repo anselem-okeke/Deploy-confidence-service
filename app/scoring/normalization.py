@@ -123,9 +123,13 @@ def score_image_pull_health(
 #     }
 #     return score, reason, raw
 
-
-def score_startup_latency(*, p95_startup_seconds: float) -> tuple[float, str, dict]:
-    if p95_startup_seconds < 30:
+def score_startup_latency(
+    *, p95_startup_seconds: float, sample_count: int = 0
+) -> tuple[float, str, dict]:
+    if sample_count == 0:
+        score = 50.0
+        reason = "Pod startup latency is unavailable because no valid startup samples were found."
+    elif p95_startup_seconds < 30:
         score = 100.0
         reason = "Pod startup latency is healthy."
     elif p95_startup_seconds < 60:
@@ -140,8 +144,28 @@ def score_startup_latency(*, p95_startup_seconds: float) -> tuple[float, str, di
 
     raw = {
         "p95_startup_seconds": p95_startup_seconds,
+        "sample_count": sample_count,
     }
     return score, reason, raw
+
+# def score_startup_latency(*, p95_startup_seconds: float) -> tuple[float, str, dict]:
+#     if p95_startup_seconds < 30:
+#         score = 100.0
+#         reason = "Pod startup latency is healthy."
+#     elif p95_startup_seconds < 60:
+#         score = 70.0
+#         reason = "Pod startup latency is elevated but still within tolerable range."
+#     elif p95_startup_seconds < 120:
+#         score = 40.0
+#         reason = "Pod startup latency is high and may delay safe rollout."
+#     else:
+#         score = 10.0
+#         reason = "Pod startup latency is critically high."
+#
+#     raw = {
+#         "p95_startup_seconds": p95_startup_seconds,
+#     }
+#     return score, reason, raw
 
 
 def score_dependency_health(*, dns_ok: bool, registry_ok: bool) -> tuple[float, str, dict]:

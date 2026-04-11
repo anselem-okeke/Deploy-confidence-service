@@ -309,11 +309,13 @@ class KubernetesCollector:
 
         result = {
             "p95_startup_seconds": round(p95, 2),
+            "sample_count": len(startup_durations),
         }
 
         logger.info(
-            "Collected startup latency p95_startup_seconds=%.2f",
+            "Collected startup latency p95_startup_seconds=%.2f sample_count=%d",
             result["p95_startup_seconds"],
+            result["sample_count"],
         )
 
         return result
