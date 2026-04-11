@@ -1,0 +1,62 @@
+{
+  "score": 95.0,
+  "status": "DEPLOY",
+  "deploy_allowed": true,
+  "threshold": 70,
+  "summary": "restart pressure and node headroom are the main factors affecting deployment confidence.",
+  "updated_at": "2026-04-10T11:23:21.068061Z",
+  "components": [
+    {
+      "name": "node_headroom",
+      "score": 100.0,
+      "weight": 0.25,
+      "reason": "Workers have strong CPU and memory headroom.",
+      "raw": {
+        "max_worker_cpu_pct": 0.0,
+        "max_worker_mem_pct": 0.0
+      }
+    },
+    {
+      "name": "restart_pressure",
+      "score": 75.0,
+      "weight": 0.2,
+      "reason": "Restart pressure is elevated but still manageable.",
+      "raw": {
+        "recent_restarts_15m": 3
+      }
+    },
+    {
+      "name": "image_pull_health",
+      "score": 100.0,
+      "weight": 0.25,
+      "reason": "No active or recent image pull failures detected.",
+      "raw": {
+        "affected_pods": [],
+        "window_minutes": 15,
+        "pull_failures_15m": 0,
+        "affected_registries": [],
+        "active_pull_failures": 0,
+        "recent_pull_failure_events": 0
+      }
+    },
+    {
+      "name": "startup_latency",
+      "score": 100.0,
+      "weight": 0.15,
+      "reason": "Pod startup latency is healthy.",
+      "raw": {
+        "p95_startup_seconds": 0.0
+      }
+    },
+    {
+      "name": "dependency_health",
+      "score": 100.0,
+      "weight": 0.15,
+      "reason": "Critical deployment dependencies are currently reachable.",
+      "raw": {
+        "dns_ok": true,
+        "registry_ok": true
+      }
+    }
+  ]
+}

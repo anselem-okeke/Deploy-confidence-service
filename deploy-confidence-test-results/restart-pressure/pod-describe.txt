@@ -1,0 +1,60 @@
+Name:             crash-loop-test-7ffb844bc5-kv5qb
+Namespace:        deploy-confidence-tests
+Priority:         0
+Service Account:  default
+Node:             talos-w2/192.168.0.245
+Start Time:       Fri, 10 Apr 2026 10:53:26 +0000
+Labels:           app=crash-loop-test
+                  pod-template-hash=7ffb844bc5
+Annotations:      <none>
+Status:           Running
+IP:               10.244.7.220
+IPs:
+  IP:           10.244.7.220
+Controlled By:  ReplicaSet/crash-loop-test-7ffb844bc5
+Containers:
+  crash-loop:
+    Container ID:  containerd://aea70abfc6186cbe2eb7939b2ca90aeb7844b020c516284dfad7b5e22ce7049d
+    Image:         busybox
+    Image ID:      docker.io/library/busybox@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      sh
+      -c
+      echo crash && exit 1
+    State:          Waiting
+      Reason:       CrashLoopBackOff
+    Last State:     Terminated
+      Reason:       Error
+      Exit Code:    1
+      Started:      Fri, 10 Apr 2026 12:52:33 +0000
+      Finished:     Fri, 10 Apr 2026 12:52:33 +0000
+    Ready:          False
+    Restart Count:  28
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-mhh89 (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       False 
+  ContainersReady             False 
+  PodScheduled                True 
+Volumes:
+  kube-api-access-mhh89:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason   Age                   From     Message
+  ----     ------   ----                  ----     -------
+  Normal   Pulling  101s (x29 over 120m)  kubelet  spec.containers{crash-loop}: Pulling image "busybox"
+  Warning  BackOff  28s (x109 over 120m)  kubelet  spec.containers{crash-loop}: Back-off restarting failed container crash-loop in pod crash-loop-test-7ffb844bc5-kv5qb_deploy-confidence-tests(c7915e75-06d5-4e13-8bdb-85264efdb687)

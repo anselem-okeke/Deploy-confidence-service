@@ -1,0 +1,8 @@
+{
+  "score": 95.0,
+  "status": "DEPLOY",
+  "deploy_allowed": true,
+  "threshold": 70,
+  "summary": "restart pressure and node headroom are the main factors affecting deployment confidence.",
+  "updated_at": "2026-04-10T11:23:21.068061Z"
+}

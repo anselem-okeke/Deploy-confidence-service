@@ -1,0 +1,3 @@
+NAME                               READY   STATUS             RESTARTS        AGE    IP             NODE       NOMINATED NODE   READINESS GATES
+baseline-ok-78b566c496-gkxjd       1/1     Running            0               42h    10.244.7.157   talos-w2   <none>           <none>
+crash-loop-test-7ffb844bc5-kv5qb   0/1     CrashLoopBackOff   28 (101s ago)   120m   10.244.7.220   talos-w2   <none>           <none>

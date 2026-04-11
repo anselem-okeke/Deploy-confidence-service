@@ -1,0 +1,13 @@
+{
+  "status": "ok",
+  "service": "deploy-confidence-service",
+  "app_healthy": true,
+  "database_healthy": true,
+  "scheduler_healthy": true,
+  "score_fresh": true,
+  "last_successful_score_update": "2026-04-10T11:21:20.940286Z",
+  "last_run_started_at": "2026-04-10T11:21:17.294789Z",
+  "last_run_failed_at": null,
+  "last_error": null,
+  "version": "0.1.0"
+}
