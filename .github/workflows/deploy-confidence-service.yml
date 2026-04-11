@@ -69,7 +69,7 @@ jobs:
           docker push $IMAGE_NAME:${GITHUB_SHA}
           docker push $IMAGE_NAME:latest
 
-   deploy:
+  deploy:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: build-and-push
