@@ -263,10 +263,6 @@ class KubernetesCollector:
             if metadata is None or status is None:
                 continue
 
-            labels = getattr(metadata, "labels", {}) or {}
-            if labels.get("app") != "deploy-confidence-service":
-                continue
-
             created_at = getattr(metadata, "creation_timestamp", None)
             if created_at is None:
                 continue
