@@ -151,16 +151,49 @@ def test_collect_startup_latency():
 
     pods = [
         SimpleNamespace(
-            metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=10)),
-            status=SimpleNamespace(start_time=now - timedelta(minutes=9, seconds=30)),
+            metadata=SimpleNamespace(
+                creation_timestamp=now - timedelta(minutes=10),
+                labels={"app": "web"},
+            ),
+            status=SimpleNamespace(
+                conditions=[
+                    SimpleNamespace(
+                        type="Ready",
+                        status="True",
+                        last_transition_time=now - timedelta(minutes=9, seconds=30),
+                    )
+                ]
+            ),
         ),
         SimpleNamespace(
-            metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=8)),
-            status=SimpleNamespace(start_time=now - timedelta(minutes=7, seconds=10)),
+            metadata=SimpleNamespace(
+                creation_timestamp=now - timedelta(minutes=8),
+                labels={"app": "web"},
+            ),
+            status=SimpleNamespace(
+                conditions=[
+                    SimpleNamespace(
+                        type="Ready",
+                        status="True",
+                        last_transition_time=now - timedelta(minutes=7, seconds=10),
+                    )
+                ]
+            ),
         ),
         SimpleNamespace(
-            metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=6)),
-            status=SimpleNamespace(start_time=now - timedelta(minutes=4, seconds=30)),
+            metadata=SimpleNamespace(
+                creation_timestamp=now - timedelta(minutes=6),
+                labels={"app": "web"},
+            ),
+            status=SimpleNamespace(
+                conditions=[
+                    SimpleNamespace(
+                        type="Ready",
+                        status="True",
+                        last_transition_time=now - timedelta(minutes=4, seconds=30),
+                    )
+                ]
+            ),
         ),
     ]
 
@@ -174,8 +207,37 @@ def test_collect_startup_latency():
     result = collector.collect_startup_latency(window_minutes=30)
 
     assert result["p95_startup_seconds"] > 0
-    assert isinstance(result["p95_startup_seconds"], float)
+    assert result["sample_count"] == 3
 
+# def test_collect_startup_latency():
+#     now = datetime.now(timezone.utc)
+#
+#     pods = [
+#         SimpleNamespace(
+#             metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=10)),
+#             status=SimpleNamespace(start_time=now - timedelta(minutes=9, seconds=30)),
+#         ),
+#         SimpleNamespace(
+#             metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=8)),
+#             status=SimpleNamespace(start_time=now - timedelta(minutes=7, seconds=10)),
+#         ),
+#         SimpleNamespace(
+#             metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=6)),
+#             status=SimpleNamespace(start_time=now - timedelta(minutes=4, seconds=30)),
+#         ),
+#     ]
+#
+#     fake_api = _FakeCoreV1Api(events=[], pods=pods)
+#
+#     collector = KubernetesCollector(
+#         in_cluster=False,
+#         core_v1_api=fake_api,
+#     )
+#
+#     result = collector.collect_startup_latency(window_minutes=30)
+#
+#     assert result["p95_startup_seconds"] > 0
+#     assert isinstance(result["p95_startup_seconds"], float)
 
 def test_collect_kubernetes_inputs():
     now = datetime.now(timezone.utc)
@@ -191,8 +253,19 @@ def test_collect_kubernetes_inputs():
 
     pods = [
         SimpleNamespace(
-            metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=5)),
-            status=SimpleNamespace(start_time=now - timedelta(minutes=4, seconds=20)),
+            metadata=SimpleNamespace(
+                creation_timestamp=now - timedelta(minutes=5),
+                labels={"app": "web"},
+            ),
+            status=SimpleNamespace(
+                conditions=[
+                    SimpleNamespace(
+                        type="Ready",
+                        status="True",
+                        last_transition_time=now - timedelta(minutes=4, seconds=20),
+                    )
+                ]
+            ),
         ),
     ]
 
@@ -209,6 +282,41 @@ def test_collect_kubernetes_inputs():
     assert "startup_latency" in result
     assert result["image_pull_health"]["pull_failures_15m"] == 1
     assert result["startup_latency"]["p95_startup_seconds"] > 0
+    assert result["startup_latency"]["sample_count"] == 1
+
+
+# def test_collect_kubernetes_inputs():
+#     now = datetime.now(timezone.utc)
+#
+#     events = [
+#         SimpleNamespace(
+#             last_timestamp=now - timedelta(minutes=5),
+#             event_time=None,
+#             reason="ErrImagePull",
+#             message='Error: ErrImagePull image "quay.io/prometheus/busybox:latest"',
+#         ),
+#     ]
+#
+#     pods = [
+#         SimpleNamespace(
+#             metadata=SimpleNamespace(creation_timestamp=now - timedelta(minutes=5)),
+#             status=SimpleNamespace(start_time=now - timedelta(minutes=4, seconds=20)),
+#         ),
+#     ]
+#
+#     fake_api = _FakeCoreV1Api(events=events, pods=pods)
+#
+#     collector = KubernetesCollector(
+#         in_cluster=False,
+#         core_v1_api=fake_api,
+#     )
+#
+#     result = collector.collect_kubernetes_inputs()
+#
+#     assert "image_pull_health" in result
+#     assert "startup_latency" in result
+#     assert result["image_pull_health"]["pull_failures_15m"] == 1
+#     assert result["startup_latency"]["p95_startup_seconds"] > 0
 
 
 def test_collect_dependency_health_success():

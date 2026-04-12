@@ -25,7 +25,7 @@ def test_calculate_deployment_confidence_caution():
         "node_headroom": {"max_worker_cpu_pct": 70, "max_worker_mem_pct": 72},
         "restart_pressure": {"recent_restarts_15m": 4},
         "image_pull_health": {"pull_failures_15m": 2, "affected_registries": ["quay.io"]},
-        "startup_latency": {"p95_startup_seconds": 45},
+        "startup_latency": {"p95_startup_seconds": 45, "sample_count": 1},
         "dependency_health": {"dns_ok": True, "registry_ok": True},
     }
 
@@ -58,8 +58,6 @@ class FakePrometheusCollector:
             "node_headroom": {"max_worker_cpu_pct": 60, "max_worker_mem_pct": 70},
             "restart_pressure": {"recent_restarts_15m": 3},
         }
-
-
 class FakeKubernetesCollector:
     def collect_kubernetes_inputs(self):
         return {
@@ -69,8 +67,21 @@ class FakeKubernetesCollector:
             },
             "startup_latency": {
                 "p95_startup_seconds": 45,
+                "sample_count": 1,
             },
         }
+
+# class FakeKubernetesCollector:
+#     def collect_kubernetes_inputs(self):
+#         return {
+#             "image_pull_health": {
+#                 "pull_failures_15m": 2,
+#                 "affected_registries": ["quay.io"],
+#             },
+#             "startup_latency": {
+#                 "p95_startup_seconds": 45,
+#             },
+#         }
 
 
 class FakeDependencyChecker:
