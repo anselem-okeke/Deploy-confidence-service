@@ -19,3 +19,6 @@ data:
 
   KUBERNETES_IN_CLUSTER: "true"
 
+  DEPENDENCY_DNS_TARGET: "dependency-echo.deploy-confidence-tests.svc.cluster.local"
+  DEPENDENCY_REGISTRY_URLS: "http://dependency-echo.deploy-confidence-tests.svc.cluster.local"
+
