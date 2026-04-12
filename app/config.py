@@ -26,6 +26,9 @@ class Settings(BaseSettings):
 
     kubernetes_in_cluster: bool = False
 
+    dependency_dns_target: str = "quay.io"
+    dependency_registry_urls: str = "https://quay.io,https://public.ecr.aws"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
