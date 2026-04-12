@@ -72,7 +72,7 @@ class PrometheusCollector:
 
     def collect_node_headroom(self) -> dict[str, float]:
         cpu_query = '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))'
-        mem_query = '100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))'
+        mem_query = '100 * avg by (instance) (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))'
 
         cpu_result = self._query(cpu_query)
         mem_result = self._query(mem_query)
@@ -90,6 +90,27 @@ class PrometheusCollector:
             "max_worker_cpu_pct": round(max_worker_cpu_pct, 2),
             "max_worker_mem_pct": round(max_worker_mem_pct, 2),
         }
+
+    # def collect_node_headroom(self) -> dict[str, float]:
+    #     cpu_query = '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))'
+    #     mem_query = '100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))'
+    #
+    #     cpu_result = self._query(cpu_query)
+    #     mem_result = self._query(mem_query)
+    #
+    #     max_worker_cpu_pct = self._extract_max_value(cpu_result)
+    #     max_worker_mem_pct = self._extract_max_value(mem_result)
+    #
+    #     logger.info(
+    #         "Collected node headroom inputs max_worker_cpu_pct=%.2f max_worker_mem_pct=%.2f",
+    #         max_worker_cpu_pct,
+    #         max_worker_mem_pct,
+    #     )
+    #
+    #     return {
+    #         "max_worker_cpu_pct": round(max_worker_cpu_pct, 2),
+    #         "max_worker_mem_pct": round(max_worker_mem_pct, 2),
+    #     }
 
     def collect_restart_pressure(self) -> dict[str, int]:
         restart_query = 'sum(increase(kube_pod_container_status_restarts_total[15m]))'
