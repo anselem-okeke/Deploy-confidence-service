@@ -3,8 +3,6 @@ import socket
 
 import httpx
 
-from app.settings import settings
-
 logger = logging.getLogger(__name__)
 
 
