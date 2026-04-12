@@ -16,7 +16,7 @@ spec:
       serviceAccountName: deploy-confidence-sa
       containers:
         - name: deploy-confidence-service
-          image: ghcr.io/anselem-okeke/deploy-confidence-service:0.1.0
+          image: ghcr.io/anselem-okeke/deploy-confidence-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

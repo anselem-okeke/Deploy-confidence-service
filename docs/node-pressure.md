@@ -10,9 +10,9 @@ Use this when you see signs like:
 1. Confirm the incident
    Commands:
   ```shell
- kubectl get nodes
-   kubectl describe node <node-name>
-   kubectl get events -A --sort-by=.lastTimestamp | tail -n 100
+kubectl get nodes
+kubectl describe node <node-name>
+kubectl get events -A --sort-by=.lastTimestamp | tail -n 100
 ```
 
    Check for:
@@ -58,8 +58,8 @@ kubectl get pods -n logging -w
 5. Clean up stale pod objects
    - Delete succeeded and failed pod objects:
   ```shell
- kubectl delete pod -A --field-selector=status.phase=Succeeded
-   kubectl delete pod -A --field-selector=status.phase=Failed
+kubectl delete pod -A --field-selector=status.phase=Succeeded
+kubectl delete pod -A --field-selector=status.phase=Failed
 ```
 
    - Delete evicted pods:
