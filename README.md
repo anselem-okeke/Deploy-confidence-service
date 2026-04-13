@@ -1,5 +1,7 @@
 ## Deploy-Confidence-Service
+
 ![deploy-confidence-architecture](img/deploy-confidence-architecture2.png)
+![cluster-up](deploy-confidence-test-results/img/cluster-up.gif)
 
 A Kubernetes-native decision service that converts platform signals into a deployment confidence score and exposes the result through API, PostgreSQL-backed history, Grafana dashboards, and CI/CD deployment gates.
 
