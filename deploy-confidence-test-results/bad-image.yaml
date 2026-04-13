@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-image-test
+  namespace: deploy-confidence-tests
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bad-image-test
+  template:
+    metadata:
+      labels:
+        app: bad-image-test
+    spec:
+      containers:
+        - name: bad-image
+          image: nginx:this-tag-does-not-exist

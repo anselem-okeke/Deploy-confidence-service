@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slow-start-test
+  namespace: deploy-confidence-tests
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slow-start-test
+  template:
+    metadata:
+      labels:
+        app: slow-start-test
+    spec:
+      containers:
+        - name: slow-start
+          image: busybox
+          command: ["sh", "-c", "sleep 90 && httpd -f -p 8080"]
+          ports:
+            - containerPort: 8080

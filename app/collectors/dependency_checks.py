@@ -13,7 +13,7 @@ class DependencyCheckError(Exception):
 class DependencyChecker:
     def __init__(
         self,
-        dns_target: str = "quay.io",
+        dns_target: str = "does not exist",  #"quay.io"
         registry_urls: list[str] | None = None,
         timeout: float = 5.0,
     ) -> None:

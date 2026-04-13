@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crash-loop-test
+  namespace: deploy-confidence-tests
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crash-loop-test
+  template:
+    metadata:
+      labels:
+        app: crash-loop-test
+    spec:
+      containers:
+        - name: crash-loop
+          image: busybox
+          command: ["sh", "-c", "echo crash && exit 1"]
